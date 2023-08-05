@@ -25,6 +25,12 @@ func addOrder(c *gin.Context) {
 	var newOrder Order
 
 	if err := c.BindJSON(&newOrder); err != nil {
+		c.String(400, "Failure to Serialize JSON to struct")
+		return
+	}
+
+	if err := ValidateStruct(newOrder); err != nil {
+		c.String(400, "Bad Request")
 		return
 	}
 

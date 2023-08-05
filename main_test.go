@@ -20,6 +20,12 @@ var router *gin.Engine = gin.Default()
 
 func setupSuite(tb testing.TB) func(tb testing.TB) {
 
+	err := os.WriteFile("orders.json", []byte("[]"), 0644)
+
+	if err != nil {
+		panic(err)
+	}
+
 	// Return a function to teardown the test
 	return func(tb testing.TB) {
 		e := os.Remove("orders.json")
@@ -167,4 +173,196 @@ func TestUpdateOrder(t *testing.T) {
 
 	assert.Equal(t, http.StatusAccepted, w.Code)
 	assert.Equal(t, order.OrderStatus, orders[0].OrderStatus)
+}
+
+func TestCompleteOrder(t *testing.T) {
+	teardownSuite := setupSuite(t)
+	defer teardownSuite(t)
+	router.PATCH("/complete-order", completeOrder)
+
+	req, err := http.NewRequest("PATCH", "/complete-order?id=1", nil)
+
+	if err != nil {
+		panic(err)
+	}
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	responseData, err := io.ReadAll(w.Body)
+
+	if err != nil {
+		panic(err)
+	}
+
+	var order Order
+
+	json.Unmarshal(responseData, &order)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, order.Active, false)
+}
+
+func TestEditOrder(t *testing.T) {
+	teardownSuite := setupSuite(t)
+	defer teardownSuite(t)
+	router.PATCH("/edit-order", editOrder)
+
+	// orders = append(orders,
+	// 	Order{ID: "1",
+	// 		Active: true, Address: "123 Example Street",
+	// 		Items:       []Item{{Name: "Laptop", Quantity: 1}},
+	// 		Recipient:   "John Doe",
+	// 		OrderStatus: OrderRecieved})
+
+	form_data := url.Values{
+		"address":   {"240 Park Street"},
+		"recipient": {"Jane Doe"},
+	}
+
+	req, err := http.NewRequest("PATCH", "/edit-order?id=1", strings.NewReader(form_data.Encode()))
+
+	if err != nil {
+		panic(err)
+	}
+
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	responseData, err := io.ReadAll(w.Body)
+
+	if err != nil {
+		panic(err)
+	}
+
+	var order Order
+
+	json.Unmarshal(responseData, &order)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, order.Address, form_data["address"][0])
+	assert.Equal(t, order.Recipient, form_data["recipient"][0])
+}
+
+func TestGetOrderError(t *testing.T) {
+	teardownSuite := setupSuite(t)
+	defer teardownSuite(t)
+
+	req, err := http.NewRequest("GET", "/get-order?id=5", nil)
+
+	if err != nil {
+		panic(err)
+	}
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestAddOrderErrors(t *testing.T) {
+	teardownSuite := setupSuite(t)
+	defer teardownSuite(t)
+
+	orderToAdd := Order{ID: "2",
+		Active: true, Address: "125 Example Street",
+		Items: []Item{{Name: "Jeans", Quantity: 2}}}
+
+	data, err := json.Marshal(orderToAdd)
+
+	if err != nil {
+		panic(err)
+	}
+
+	req, err := http.NewRequest("POST", "/add-order", bytes.NewReader(data))
+
+	if err != nil {
+		panic(err)
+	}
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
+	// test if the API returns an error if the client passes in a different model
+	invalidModel := struct {
+		Name   string `json:"name"`
+		Active bool   `json:"active"`
+	}{
+		"John",
+		true,
+	}
+
+	data, err = json.Marshal(invalidModel)
+
+	if err != nil {
+		panic(err)
+	}
+
+	req, err = http.NewRequest("POST", "/add-order", bytes.NewReader(data))
+
+	if err != nil {
+		panic(err)
+	}
+
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	body, err := io.ReadAll(w.Body)
+
+	if err != nil {
+		panic(err)
+	}
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, "Bad Request", string(body[:]))
+}
+
+func TestUpdateOrderStatusErrors(t *testing.T) {
+	teardownSuite := setupSuite(t)
+	defer teardownSuite(t)
+
+	orders = []Order{{ID: "1",
+		Active: false, Address: "123 Example Street",
+		Items:       []Item{{Name: "Laptop", Quantity: 1}},
+		Recipient:   "John Doe",
+		OrderStatus: OrderRecieved}}
+
+	form_data := url.Values{
+		"status": {"3"},
+	}
+
+	req, err := http.NewRequest("PATCH", "/update-order-status?id=1", strings.NewReader(form_data.Encode()))
+
+	if err != nil {
+		panic(err)
+	}
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusLocked, w.Code)
+
+	// Test what happens when server recieves an id it doesnt have
+
+	orders = []Order{{ID: "1",
+		Active: true, Address: "123 Example Street",
+		Items:       []Item{{Name: "Laptop", Quantity: 1}},
+		Recipient:   "John Doe",
+		OrderStatus: OrderRecieved}}
+
+	req, err = http.NewRequest("PATCH", "/update-order-status?id=foo", strings.NewReader(form_data.Encode()))
+
+	if err != nil {
+		panic(err)
+	}
+
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+
 }
