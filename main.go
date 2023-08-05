@@ -17,7 +17,7 @@ var orders []Order
 
 // Used to get status of API
 func index(c *gin.Context) {
-	c.JSON(http.StatusOK, "OK")
+	c.String(http.StatusOK, "OK")
 }
 
 // Adds an order to the order processing system
