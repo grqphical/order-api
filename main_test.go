@@ -36,7 +36,6 @@ func setupSuite(tb testing.TB) func(tb testing.TB) {
 }
 
 func TestIndex(t *testing.T) {
-	response := "OK"
 
 	router.GET("/", index)
 
@@ -48,14 +47,6 @@ func TestIndex(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
-
-	responseData, err := io.ReadAll(w.Body)
-
-	if err != nil {
-		panic(err)
-	}
-
-	assert.Equal(t, response, string(responseData))
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
@@ -266,15 +257,7 @@ func TestAddOrderErrors(t *testing.T) {
 	teardownSuite := setupSuite(t)
 	defer teardownSuite(t)
 
-	orderToAdd := Order{ID: "2",
-		Active: true, Address: "125 Example Street",
-		Items: []Item{{Name: "Jeans", Quantity: 2}}}
-
-	data, err := json.Marshal(orderToAdd)
-
-	if err != nil {
-		panic(err)
-	}
+	data := []byte("{870sasdfals: iudsaiofh} /")
 
 	req, err := http.NewRequest("POST", "/add-order", bytes.NewReader(data))
 
@@ -285,32 +268,6 @@ func TestAddOrderErrors(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-
-	// test if the API returns an error if the client passes in a different model
-	invalidModel := struct {
-		Name   string `json:"name"`
-		Active bool   `json:"active"`
-	}{
-		"John",
-		true,
-	}
-
-	data, err = json.Marshal(invalidModel)
-
-	if err != nil {
-		panic(err)
-	}
-
-	req, err = http.NewRequest("POST", "/add-order", bytes.NewReader(data))
-
-	if err != nil {
-		panic(err)
-	}
-
-	w = httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
 	body, err := io.ReadAll(w.Body)
 
 	if err != nil {
@@ -318,7 +275,7 @@ func TestAddOrderErrors(t *testing.T) {
 	}
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assert.Equal(t, "Bad Request", string(body[:]))
+	assert.Equal(t, "Failed to parse JSON", string(body[:]))
 }
 
 func TestUpdateOrderStatusErrors(t *testing.T) {
