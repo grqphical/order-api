@@ -8,29 +8,47 @@ import (
 
 	"fmt"
 
-	"strconv"
-
 	"os"
+
+    swaggerFiles "github.com/swaggo/files"
+    ginSwagger "github.com/swaggo/gin-swagger"
+
+    // docs "example/order-api/docs"
 )
 
 var orders []Order
 
-// Used to get status of API
-func index(c *gin.Context) {
-	c.String(http.StatusOK, "OK")
+// swagger:model
+type IndexResponse struct {
+    DocsUrl string `json:"documentationUrl"`
 }
 
-// Adds an order to the order processing system
+// Index godoc
+//
+// @Summary Base Route
+// @Schemes http https
+// @Produce plain
+// @Success 200 {object} IndexResponse
+// @Router / [get]
+func index(c *gin.Context) {
+	c.JSON(http.StatusOK, IndexResponse { DocsUrl: "/swagger/index.html"})
+}
+
+// AddOrder godoc
+//
+// @Summary Adds an order to the system
+// @Schemes http https
+// @Accept json
+// @Produce json
+// @Param order body Order true "Order"
+// @Success 201 {object} Order
+// @Failure 500 {string} string "Failed to parse JSON"
+// @Router /add-order [post]
 func addOrder(c *gin.Context) {
 	var newOrder Order
 
 	if err := c.BindJSON(&newOrder); err != nil {
-		c.String(400, "Failed to parse JSON")
-		return
-	}
-
-	if err := ValidateStruct(newOrder); err != nil {
-		c.String(400, "Bad Request")
+		c.String(500, "Failed to parse JSON")
 		return
 	}
 
@@ -41,7 +59,15 @@ func addOrder(c *gin.Context) {
 	c.JSON(http.StatusCreated, newOrder)
 }
 
-// Returns an order based on a given ID
+// GetOrder godoc
+//
+// @Summary Adds an order to the system
+// @Param   id  query    int true "Order ID"
+// @Schemes http https
+// @Produce json
+// @Success 200 {object} Order
+// @Failure 404 {string} string "Order with ID 'X' not found"
+// @Router /get-order [get]
 func getOrder(c *gin.Context) {
 	id := c.Query("id")
 
@@ -57,7 +83,17 @@ func getOrder(c *gin.Context) {
 	c.String(http.StatusNotFound, errMsg)
 }
 
-// Updates an order's status
+// UpdateOrderStatus godoc
+//
+// @Summary Updates an order's status
+// @Param   id      query    int    true    "Order ID"
+// @Param   status  query    Status true    "Order Status"
+// @Schemes http https
+// @Produce json
+// @Success 202 {object} Order
+// @Failure 423 {string} string "Order is no longer active"
+// @Failure 404 {string} string "Order with id 'X' not found"
+// @Router /update-order-status [patch]
 func updateOrderStatus(c *gin.Context) {
 	id := c.Query("id")
 	status := c.PostForm("status")
@@ -69,14 +105,7 @@ func updateOrderStatus(c *gin.Context) {
 				return
 			}
 
-			status_int, err := strconv.Atoi(status)
-
-			if err != nil {
-				c.JSON(http.StatusBadRequest, "Error Parsing ID")
-				return
-			}
-
-			orders[i].OrderStatus = Status(status_int)
+			orders[i].OrderStatus = Status(status)
 
 			saveDatabase(orders)
 
@@ -90,7 +119,15 @@ func updateOrderStatus(c *gin.Context) {
 	c.String(http.StatusNotFound, errMsg)
 }
 
-// Removes an order from the system
+// RemoveOrder godoc
+//
+// @Summary Removes an order from the system
+// @Param   id  query    int true "Order ID"
+// @Schemes http https
+// @Produce json
+// @Success 200 {object} Order
+// @Failure 404 {string} string "Order with ID 'X' not found"
+// @Router /remove-order [delete]
 func removeOrder(c *gin.Context) {
 	id := c.Query("id")
 
@@ -110,8 +147,15 @@ func removeOrder(c *gin.Context) {
 	c.String(http.StatusNotFound, errMsg)
 }
 
-// Changes an order's status to completed and deactivates it
-// all past orders are archived
+// CompleteOrder godoc
+//
+// @Summary Deactivates an order and archives it 
+// @Param   id  query    int true "Order ID"
+// @Schemes http https
+// @Produce json
+// @Success 200 {object} Order
+// @Failure 404 {string} string "Order with ID 'X' not found"
+// @Router /complete-order [patch]
 func completeOrder(c *gin.Context) {
 	id := c.Query("id")
 
@@ -132,6 +176,18 @@ func completeOrder(c *gin.Context) {
 	c.String(http.StatusNotFound, errMsg)
 }
 
+// EditOrder godoc
+//
+// @Summary Removes an order from the system
+// @Param   id          query       int     true    "Order ID"
+// @Param   address     formData    string  true    "Address"
+// @Param   recipient   formData    string  true    "Recipient"
+// @Schemes http https
+// @Accept x-www-form-urlencoded
+// @Produce json
+// @Success 200 {object} Order
+// @Failure 404 {string} string "Order with ID 'X' not found"
+// @Router /edit-order [patch]
 func editOrder(c *gin.Context) {
 	id := c.Query("id")
 	address := c.PostForm("address")
@@ -160,6 +216,13 @@ func editOrder(c *gin.Context) {
 
 }
 
+//  @title Order API
+//  @version 1.0
+//  @description A simple Order tracking API for an ecommerce site. View source code here: https://github.com/grqphical07/order-api
+//  @license.name MIT
+//  @license.url https://github.com/grqphical07/order-api/blob/main/LICENSE
+//  @BasePath /
+// @Schemes http https
 func main() {
 	// Read our database file
 	data, err := os.ReadFile("orders.json")
@@ -177,6 +240,10 @@ func main() {
 
 	// Setup our API webserver
 	router := gin.Default()
+
+    router.StaticFile("/docs/swagger.json", "docs/swagger.json")
+
+    router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, ginSwagger.URL("/docs/swagger.json")))
 
 	router.GET("/", index)
 	router.POST("/add-order", addOrder)

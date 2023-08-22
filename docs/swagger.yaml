@@ -1,0 +1,218 @@
+basePath: /
+definitions:
+  orderapi.IndexResponse:
+    properties:
+      documentationUrl:
+        type: string
+    type: object
+  orderapi.Item:
+    properties:
+      name:
+        type: string
+      price:
+        type: number
+      quantity:
+        type: integer
+    type: object
+  orderapi.Order:
+    properties:
+      active:
+        type: boolean
+      address:
+        type: string
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/orderapi.Item'
+        type: array
+      orderStatus:
+        $ref: '#/definitions/orderapi.Status'
+      recipient:
+        type: string
+    type: object
+  orderapi.Status:
+    enum:
+    - OrderRecieved
+    - OrderProcessing
+    - OrderOutForDelivery
+    - OrderShipped
+    type: string
+    x-enum-varnames:
+    - OrderRecieved
+    - OrderProcessing
+    - OrderOutForDelivery
+    - OrderShipped
+info:
+  contact: {}
+  description: 'A simple Order tracking API for an ecommerce site. View source code
+    here: https://github.com/grqphical07/order-api'
+  license:
+    name: MIT
+    url: https://github.com/grqphical07/order-api/blob/main/LICENSE
+  title: Order API
+  version: "1.0"
+paths:
+  /:
+    get:
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orderapi.IndexResponse'
+      summary: Base Route
+  /add-order:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Order
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/orderapi.Order'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/orderapi.Order'
+        "500":
+          description: Failed to parse JSON
+          schema:
+            type: string
+      summary: Adds an order to the system
+  /complete-order:
+    patch:
+      parameters:
+      - description: Order ID
+        in: query
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orderapi.Order'
+        "404":
+          description: Order with ID 'X' not found
+          schema:
+            type: string
+      summary: Deactivates an order and archives it
+  /edit-order:
+    patch:
+      consumes:
+      - application/x-www-form-urlencoded
+      parameters:
+      - description: Order ID
+        in: query
+        name: id
+        required: true
+        type: integer
+      - description: Address
+        in: formData
+        name: address
+        required: true
+        type: string
+      - description: Recipient
+        in: formData
+        name: recipient
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orderapi.Order'
+        "404":
+          description: Order with ID 'X' not found
+          schema:
+            type: string
+      summary: Removes an order from the system
+  /get-order:
+    get:
+      parameters:
+      - description: Order ID
+        in: query
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orderapi.Order'
+        "404":
+          description: Order with ID 'X' not found
+          schema:
+            type: string
+      summary: Adds an order to the system
+  /remove-order:
+    delete:
+      parameters:
+      - description: Order ID
+        in: query
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/orderapi.Order'
+        "404":
+          description: Order with ID 'X' not found
+          schema:
+            type: string
+      summary: Removes an order from the system
+  /update-order-status:
+    patch:
+      parameters:
+      - description: Order ID
+        in: query
+        name: id
+        required: true
+        type: integer
+      - description: Order Status
+        enum:
+        - OrderRecieved
+        - OrderProcessing
+        - OrderOutForDelivery
+        - OrderShipped
+        in: query
+        name: status
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/orderapi.Order'
+        "404":
+          description: Order with id 'X' not found
+          schema:
+            type: string
+        "423":
+          description: Order is no longer active
+          schema:
+            type: string
+      summary: Updates an order's status
+schemes:
+- http
+- https
+swagger: "2.0"

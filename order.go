@@ -1,12 +1,13 @@
 package main
 
-type Status int
+// swagger:enum Status
+type Status string
 
 const (
-	OrderRecieved       Status = 0
-	OrderProcessing     Status = 1
-	OrderOutForDelivery Status = 2
-	OrderShipped        Status = 3
+	OrderRecieved       Status = "OrderRecieved"
+	OrderProcessing     Status = "OrderProcessing"
+	OrderOutForDelivery Status = "OrderOutForDelivery"
+	OrderShipped        Status = "OrderShipped"
 )
 
 type Item struct {
@@ -15,11 +16,12 @@ type Item struct {
 	Quantity int     `json:"quantity"`
 }
 
+// swagger:model
 type Order struct {
 	ID          string `json:"id"`
 	Active      bool   `json:"active"`
 	Items       []Item `json:"items"`
 	Address     string `json:"address"`
 	Recipient   string `json:"recipient"`
-	OrderStatus Status `json:"orderStatus"`
+    OrderStatus Status `json:"orderStatus"`
 }
